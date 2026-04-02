@@ -25,6 +25,10 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Automation Notes
+
+- This repository is configured to use automatic commits and PR creation through Copilot workflow instructions.
+
 ## Project setup
 
 ```bash
