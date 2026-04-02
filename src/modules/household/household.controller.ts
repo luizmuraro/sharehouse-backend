@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types';
@@ -10,6 +10,11 @@ import { HouseholdService } from './household.service';
 @Controller('household')
 export class HouseholdController {
   constructor(private readonly householdService: HouseholdService) {}
+
+  @Get()
+  async getMyHousehold(@CurrentUser() user: AuthenticatedUser) {
+    return this.householdService.getMyHousehold(user);
+  }
 
   @Post()
   async create(
