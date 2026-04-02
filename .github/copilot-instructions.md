@@ -210,13 +210,19 @@ FRONTEND_URL=http://localhost:5173
 - Do NOT comment obvious lines like `return this.userService.findById(id)`
 
 ### Git Workflow
-- After completing each logical unit of work, suggest a conventional commit message following the format:
+- After completing each logical unit of work, create the commit automatically using conventional commits:
   `type(scope): short description`
   Types: `feat`, `fix`, `refactor`, `chore`, `docs`
   Example: `feat(auth): add JWT strategy and login endpoint`
-- At the end of each module (auth, household, expenses, shopping), suggest opening a Pull Request with:
+- Default flow for each logical unit:
+  1. Run validations/tests related to the change
+  2. Stage files (`git add ...`)
+  3. Commit automatically with a conventional message
+  4. Push branch to origin
+- At the end of each module (auth, household, expenses, shopping), open a Pull Request directly from terminal using GitHub CLI (`gh pr create`) with:
   - A clear PR title
-  - A short description of what was built in that module
+  - A short module summary
   - A checklist of what was implemented
-  - Any follow-up tasks or known limitations to note
-  - Suggest the commit/PR naturally at the end of each module, not mid-file and let me just click to confirm the commit message and PR creation
+  - Follow-up tasks or known limitations
+- If `gh` is not installed or not authenticated, provide exact setup commands and then proceed with PR creation right after setup.
+- Do not wait for manual commit/PR prompts unless explicitly requested by the user.
