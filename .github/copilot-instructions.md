@@ -215,10 +215,11 @@ FRONTEND_URL=http://localhost:5173
   Types: `feat`, `fix`, `refactor`, `chore`, `docs`
   Example: `feat(auth): add JWT strategy and login endpoint`
 - Default flow for each logical unit:
+  0. Create or switch to a feature branch before coding (never commit directly to `main`)
   1. Run validations/tests related to the change
   2. Stage files (`git add ...`)
   3. Commit automatically with a conventional message
-  4. Push branch to origin
+  4. Push the feature branch to origin
 - At the end of each module (auth, household, expenses, shopping), open a Pull Request directly from terminal using GitHub CLI (`gh pr create`) with:
   - A clear PR title
   - A short module summary
