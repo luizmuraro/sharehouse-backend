@@ -10,6 +10,7 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
 import { HouseholdModule } from './modules/household/household.module';
 import configuration from './config/configuration';
 import { ShoppingModule } from './modules/shopping/shopping.module';
+import { UsersModule } from './modules/users/users.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -30,6 +31,7 @@ import { validateEnv } from './config/env.validation';
     HouseholdModule,
     ExpensesModule,
     ShoppingModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [
