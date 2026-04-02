@@ -19,7 +19,7 @@ export class User {
   @Prop({ type: Types.ObjectId, ref: 'Household', default: null })
   householdId: Types.ObjectId | null;
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   avatarUrl?: string | null;
 
   createdAt: Date;

@@ -24,7 +24,7 @@ export class Expense {
   @Prop({ required: true, min: 1 })
   amount: number;
 
-  @Prop({ required: true, enum: EXPENSE_CATEGORIES })
+  @Prop({ type: String, required: true, enum: EXPENSE_CATEGORIES })
   category: ExpenseCategory;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
@@ -36,7 +36,7 @@ export class Expense {
   @Prop({ required: true })
   date: Date;
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   receiptUrl?: string | null;
 
   createdAt: Date;
