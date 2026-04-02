@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 import { HouseholdModule } from './modules/household/household.module';
 import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
@@ -26,6 +27,7 @@ import { validateEnv } from './config/env.validation';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     AuthModule,
     HouseholdModule,
+    ExpensesModule,
   ],
   controllers: [AppController],
   providers: [
