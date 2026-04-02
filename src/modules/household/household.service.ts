@@ -60,6 +60,28 @@ export class HouseholdService {
     return this.serializeHousehold(household, [userDoc]);
   }
 
+  async getMyHousehold(user: AuthenticatedUser): Promise<HouseholdResponse> {
+    const userDoc = await this.findUserById(user.id);
+
+    if (!userDoc.householdId) {
+      throw new NotFoundException('User is not part of any household');
+    }
+
+    const household = await this.householdModel
+      .findOne({ _id: userDoc.householdId, members: userDoc._id })
+      .exec();
+
+    if (!household) {
+      throw new NotFoundException('Household not found');
+    }
+
+    const members = await this.userModel
+      .find({ _id: { $in: household.members } })
+      .exec();
+
+    return this.serializeHousehold(household, members);
+  }
+
   async generateInviteCode(user: AuthenticatedUser): Promise<{ inviteCode: string }> {
     const userDoc = await this.findUserById(user.id);
 
