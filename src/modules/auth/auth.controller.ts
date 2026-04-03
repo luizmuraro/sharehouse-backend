@@ -35,12 +35,7 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('access_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+    response.clearCookie('access_token', this.getAuthCookieOptions());
 
     return { loggedOut: true };
   }
@@ -53,13 +48,21 @@ export class AuthController {
 
   private setAuthCookie(response: Response, accessToken: string): void {
     const cookieOptions: CookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...this.getAuthCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
     };
 
     response.cookie('access_token', accessToken, cookieOptions);
+  }
+
+  private getAuthCookieOptions(): CookieOptions {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    return {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
+    };
   }
 }
