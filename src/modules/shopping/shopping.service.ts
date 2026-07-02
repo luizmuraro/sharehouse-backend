@@ -8,7 +8,10 @@ import { Model, Types } from 'mongoose';
 import type { AuthenticatedUser } from '../auth/types';
 import { CreateShoppingItemDto } from './dto/create-shopping-item.dto';
 import { UpdateShoppingItemDto } from './dto/update-shopping-item.dto';
-import { ShoppingItem, ShoppingItemDocument } from './schemas/shopping-item.schema';
+import {
+  ShoppingItem,
+  ShoppingItemDocument,
+} from './schemas/shopping-item.schema';
 
 type ShoppingItemResponse = {
   id: string;
@@ -87,7 +90,10 @@ export class ShoppingService {
     return this.serializeItem(item);
   }
 
-  async remove(user: AuthenticatedUser, itemId: string): Promise<{ deleted: true }> {
+  async remove(
+    user: AuthenticatedUser,
+    itemId: string,
+  ): Promise<{ deleted: true }> {
     const householdId = this.getHouseholdId(user);
     const item = await this.findItemByIdInHousehold(itemId, householdId);
 
@@ -96,7 +102,9 @@ export class ShoppingService {
     return { deleted: true };
   }
 
-  async removeChecked(user: AuthenticatedUser): Promise<{ deletedCount: number }> {
+  async removeChecked(
+    user: AuthenticatedUser,
+  ): Promise<{ deletedCount: number }> {
     const householdId = this.getHouseholdId(user);
 
     const result = await this.shoppingItemModel

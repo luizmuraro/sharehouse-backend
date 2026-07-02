@@ -11,7 +11,10 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../schemas/expense.schema';
+import {
+  EXPENSE_CATEGORIES,
+  type ExpenseCategory,
+} from '../schemas/expense.schema';
 
 export class CreateExpenseDto {
   @IsString()
@@ -28,10 +31,13 @@ export class CreateExpenseDto {
   @IsMongoId()
   paidBy: string;
 
+  // Optional: solo households ignore this (forced to 1 server-side); paired
+  // households fall back to the schema default (0.5) when omitted.
+  @IsOptional()
   @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   @Max(1)
-  splitRatio: number;
+  splitRatio?: number;
 
   @IsDateString()
   date: string;

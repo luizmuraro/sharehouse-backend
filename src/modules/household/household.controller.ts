@@ -36,4 +36,9 @@ export class HouseholdController {
   ) {
     return this.householdService.join(user, joinHouseholdDto);
   }
+
+  @Post('leave')
+  async leave(@CurrentUser() user: AuthenticatedUser) {
+    return this.householdService.leave(user);
+  }
 }

@@ -13,9 +13,10 @@ type SuccessResponse<T> = {
 };
 
 @Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, SuccessResponse<T>>
-{
+export class TransformInterceptor<T> implements NestInterceptor<
+  T,
+  SuccessResponse<T>
+> {
   intercept(
     _context: ExecutionContext,
     next: CallHandler,
