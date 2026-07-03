@@ -9,6 +9,15 @@ import { randomBytes } from 'crypto';
 import { Model, Types } from 'mongoose';
 import { AuthenticatedUser } from '../auth/types';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Expense, ExpenseDocument } from '../expenses/schemas/expense.schema';
+import {
+  Settlement,
+  SettlementDocument,
+} from '../expenses/schemas/settlement.schema';
+import {
+  ShoppingItem,
+  ShoppingItemDocument,
+} from '../shopping/schemas/shopping-item.schema';
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { JoinHouseholdDto } from './dto/join-household.dto';
 import { Household, HouseholdDocument } from './schemas/household.schema';
@@ -35,6 +44,12 @@ export class HouseholdService {
     private readonly householdModel: Model<HouseholdDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Expense.name)
+    private readonly expenseModel: Model<ExpenseDocument>,
+    @InjectModel(Settlement.name)
+    private readonly settlementModel: Model<SettlementDocument>,
+    @InjectModel(ShoppingItem.name)
+    private readonly shoppingItemModel: Model<ShoppingItemDocument>,
   ) {}
 
   async create(
@@ -54,7 +69,7 @@ export class HouseholdService {
       members: [userDoc._id],
     });
 
-    userDoc.householdId = household._id as Types.ObjectId;
+    userDoc.householdId = household._id;
     await userDoc.save();
 
     return this.serializeHousehold(household, [userDoc]);
@@ -82,14 +97,18 @@ export class HouseholdService {
     return this.serializeHousehold(household, members);
   }
 
-  async generateInviteCode(user: AuthenticatedUser): Promise<{ inviteCode: string }> {
+  async generateInviteCode(
+    user: AuthenticatedUser,
+  ): Promise<{ inviteCode: string }> {
     const userDoc = await this.findUserById(user.id);
 
     if (!userDoc.householdId) {
       throw new BadRequestException('User is not part of any household');
     }
 
-    const household = await this.householdModel.findById(userDoc.householdId).exec();
+    const household = await this.householdModel
+      .findById(userDoc.householdId)
+      .exec();
     if (!household) {
       throw new NotFoundException('Household not found');
     }
@@ -117,21 +136,64 @@ export class HouseholdService {
       throw new NotFoundException('Invalid invite code');
     }
 
-    if (household.members.length >= 2) {
+    // Atomically add the member only while the household still has exactly one
+    // member. A plain length check + push + save is not atomic: two concurrent
+    // joins could both pass the check and produce a 3-member household, which
+    // corrupts the 2-person summary/balance math.
+    const updated = await this.householdModel
+      .findOneAndUpdate(
+        { _id: household._id, members: { $size: 1 } },
+        { $push: { members: userDoc._id } },
+        { new: true },
+      )
+      .exec();
+
+    if (!updated) {
       throw new ConflictException('Household already has two members');
     }
 
-    household.members.push(userDoc._id as Types.ObjectId);
-    await household.save();
-
-    userDoc.householdId = household._id as Types.ObjectId;
+    userDoc.householdId = updated._id;
     await userDoc.save();
 
     const members = await this.userModel
-      .find({ _id: { $in: household.members } })
+      .find({ _id: { $in: updated.members } })
       .exec();
 
-    return this.serializeHousehold(household, members);
+    return this.serializeHousehold(updated, members);
+  }
+
+  async leave(user: AuthenticatedUser): Promise<{ left: true }> {
+    const userDoc = await this.findUserById(user.id);
+
+    if (!userDoc.householdId) {
+      throw new BadRequestException('User is not part of any household');
+    }
+
+    const householdId = userDoc.householdId;
+
+    // Detach the user and remove them from the members list. Existing expenses,
+    // shopping items and settlements are kept so the remaining member retains
+    // the full history of what the leaver left behind (anti-scam / audit trail).
+    await this.householdModel
+      .updateOne({ _id: householdId }, { $pull: { members: userDoc._id } })
+      .exec();
+
+    userDoc.householdId = null;
+    await userDoc.save();
+
+    // If nobody is left, there is no one to see the data — cascade-delete the
+    // household and everything scoped to it to avoid orphaned records.
+    const household = await this.householdModel.findById(householdId).exec();
+    if (household && household.members.length === 0) {
+      await Promise.all([
+        this.householdModel.deleteOne({ _id: householdId }).exec(),
+        this.expenseModel.deleteMany({ householdId }).exec(),
+        this.settlementModel.deleteMany({ householdId }).exec(),
+        this.shoppingItemModel.deleteMany({ householdId }).exec(),
+      ]);
+    }
+
+    return { left: true };
   }
 
   private async findUserById(userId: string): Promise<UserDocument> {
@@ -157,7 +219,9 @@ export class HouseholdService {
         continue;
       }
 
-      const exists = await this.householdModel.exists({ inviteCode: candidate }).exec();
+      const exists = await this.householdModel
+        .exists({ inviteCode: candidate })
+        .exec();
       if (!exists) {
         return candidate;
       }

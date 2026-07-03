@@ -49,7 +49,10 @@ export class ShoppingController {
   }
 
   @Delete(':id')
-  async remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.shoppingService.remove(user, id);
   }
 }

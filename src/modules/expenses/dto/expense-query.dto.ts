@@ -1,6 +1,16 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsMongoId, IsOptional, Max, Min } from 'class-validator';
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../schemas/expense.schema';
+import {
+  IsEnum,
+  IsInt,
+  IsMongoId,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
+import {
+  EXPENSE_CATEGORIES,
+  type ExpenseCategory,
+} from '../schemas/expense.schema';
 
 export class ExpenseQueryDto {
   @IsOptional()

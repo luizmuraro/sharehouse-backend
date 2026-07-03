@@ -27,6 +27,11 @@ export class ExpensesController {
     return this.expensesService.summary(user);
   }
 
+  @Post('settle')
+  async settle(@CurrentUser() user: AuthenticatedUser) {
+    return this.expensesService.settle(user);
+  }
+
   @Get()
   async findAll(
     @CurrentUser() user: AuthenticatedUser,
@@ -44,7 +49,10 @@ export class ExpensesController {
   }
 
   @Get(':id')
-  async findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  async findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.expensesService.findOne(user, id);
   }
 
@@ -58,7 +66,10 @@ export class ExpensesController {
   }
 
   @Delete(':id')
-  async remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.expensesService.remove(user, id);
   }
 }

@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
@@ -17,6 +18,8 @@ type ErrorResponse = {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -26,6 +29,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const statusCode = isHttpException
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    // Unexpected (non-HttpException) errors are otherwise swallowed as a generic
+    // 500 with no trace — log them (with stack) so production issues are debuggable.
+    if (!isHttpException) {
+      this.logger.error(
+        `Unhandled exception on ${request.method} ${request.url}`,
+        exception instanceof Error ? exception.stack : String(exception),
+      );
+    }
 
     let message = 'Internal server error';
     if (isHttpException) {
@@ -38,7 +50,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         exceptionResponse !== null &&
         'message' in exceptionResponse
       ) {
-        const exceptionMessage = (exceptionResponse as { message: unknown }).message;
+        const exceptionMessage = exceptionResponse.message;
         message = Array.isArray(exceptionMessage)
           ? exceptionMessage.join(', ')
           : String(exceptionMessage);

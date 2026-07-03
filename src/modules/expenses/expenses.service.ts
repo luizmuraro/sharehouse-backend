@@ -11,6 +11,10 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { ExpenseQueryDto } from './dto/expense-query.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { Expense, ExpenseDocument } from './schemas/expense.schema';
+import {
+  Settlement,
+  SettlementDocument,
+} from './schemas/settlement.schema';
 
 type ExpenseResponse = {
   id: string;
@@ -49,6 +53,8 @@ export class ExpensesService {
   constructor(
     @InjectModel(Expense.name)
     private readonly expenseModel: Model<ExpenseDocument>,
+    @InjectModel(Settlement.name)
+    private readonly settlementModel: Model<SettlementDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
   ) {}
@@ -58,16 +64,28 @@ export class ExpensesService {
     createExpenseDto: CreateExpenseDto,
   ): Promise<ExpenseResponse> {
     const householdId = this.getHouseholdId(user);
-    await this.ensureUserInHousehold(createExpenseDto.paidBy, householdId);
-    this.validateSplitRatio(createExpenseDto.splitRatio);
+
+    // Solo household (only the creator): the expense is 100% the current user's,
+    // so ignore any client-supplied payer/split and attribute it to self. The
+    // 2-member split only becomes meaningful once a partner joins.
+    const memberCount = await this.userModel
+      .countDocuments({ householdId: new Types.ObjectId(householdId) })
+      .exec();
+    const isSolo = memberCount < 2;
+
+    const paidBy = isSolo ? user.id : createExpenseDto.paidBy;
+    const splitRatio = isSolo ? 1 : (createExpenseDto.splitRatio ?? 0.5);
+
+    await this.ensureUserInHousehold(paidBy, householdId);
+    this.validateSplitRatio(splitRatio);
 
     const createdExpense = await this.expenseModel.create({
       householdId: new Types.ObjectId(householdId),
       description: createExpenseDto.description,
       amount: createExpenseDto.amount,
       category: createExpenseDto.category,
-      paidBy: new Types.ObjectId(createExpenseDto.paidBy),
-      splitRatio: createExpenseDto.splitRatio,
+      paidBy: new Types.ObjectId(paidBy),
+      splitRatio,
       date: new Date(createExpenseDto.date),
       receiptUrl: createExpenseDto.receiptUrl ?? null,
     });
@@ -108,9 +126,15 @@ export class ExpensesService {
     return expenses.map((expense) => this.serializeExpense(expense));
   }
 
-  async findOne(user: AuthenticatedUser, expenseId: string): Promise<ExpenseResponse> {
+  async findOne(
+    user: AuthenticatedUser,
+    expenseId: string,
+  ): Promise<ExpenseResponse> {
     const householdId = this.getHouseholdId(user);
-    const expense = await this.findExpenseByIdInHousehold(expenseId, householdId);
+    const expense = await this.findExpenseByIdInHousehold(
+      expenseId,
+      householdId,
+    );
 
     return this.serializeExpense(expense);
   }
@@ -121,7 +145,10 @@ export class ExpensesService {
     updateExpenseDto: UpdateExpenseDto,
   ): Promise<ExpenseResponse> {
     const householdId = this.getHouseholdId(user);
-    const expense = await this.findExpenseByIdInHousehold(expenseId, householdId);
+    const expense = await this.findExpenseByIdInHousehold(
+      expenseId,
+      householdId,
+    );
 
     if (typeof updateExpenseDto.paidBy === 'string') {
       await this.ensureUserInHousehold(updateExpenseDto.paidBy, householdId);
@@ -158,9 +185,15 @@ export class ExpensesService {
     return this.serializeExpense(expense);
   }
 
-  async remove(user: AuthenticatedUser, expenseId: string): Promise<{ deleted: true }> {
+  async remove(
+    user: AuthenticatedUser,
+    expenseId: string,
+  ): Promise<{ deleted: true }> {
     const householdId = this.getHouseholdId(user);
-    const expense = await this.findExpenseByIdInHousehold(expenseId, householdId);
+    const expense = await this.findExpenseByIdInHousehold(
+      expenseId,
+      householdId,
+    );
 
     await expense.deleteOne();
 
@@ -179,7 +212,9 @@ export class ExpensesService {
     }
 
     const memberIds = members.map((member) => member._id.toString());
-    const balances = new Map<string, number>(memberIds.map((memberId) => [memberId, 0]));
+    const balances = new Map<string, number>(
+      memberIds.map((memberId) => [memberId, 0]),
+    );
 
     const expenses = await this.expenseModel
       .find({ householdId: new Types.ObjectId(householdId) })
@@ -203,6 +238,26 @@ export class ExpensesService {
 
       balances.set(paidBy, (balances.get(paidBy) ?? 0) + otherShare);
       balances.set(otherMember, (balances.get(otherMember) ?? 0) - otherShare);
+    }
+
+    // Net recorded settlements: the debtor (fromUserId) paying the creditor
+    // (toUserId) reduces the debt, moving both balances toward zero.
+    if (memberIds.length >= 2) {
+      const settlements = await this.settlementModel
+        .find({ householdId: new Types.ObjectId(householdId) })
+        .exec();
+
+      for (const settlement of settlements) {
+        const from = settlement.fromUserId.toString();
+        const to = settlement.toUserId.toString();
+
+        if (!balances.has(from) || !balances.has(to)) {
+          continue;
+        }
+
+        balances.set(from, (balances.get(from) ?? 0) + settlement.amountCents);
+        balances.set(to, (balances.get(to) ?? 0) - settlement.amountCents);
+      }
     }
 
     const serializedMembers = members.map((member) => ({
@@ -238,6 +293,29 @@ export class ExpensesService {
     };
   }
 
+  /**
+   * Records a settlement that clears the entire current balance (full settle-up).
+   * Uses the outstanding transfer from the summary to know who pays whom.
+   */
+  async settle(user: AuthenticatedUser): Promise<ExpensesSummaryResponse> {
+    const householdId = this.getHouseholdId(user);
+    const currentSummary = await this.summary(user);
+    const { transfer } = currentSummary;
+
+    if (!transfer) {
+      throw new BadRequestException('There is no outstanding balance to settle');
+    }
+
+    await this.settlementModel.create({
+      householdId: new Types.ObjectId(householdId),
+      fromUserId: new Types.ObjectId(transfer.fromUserId),
+      toUserId: new Types.ObjectId(transfer.toUserId),
+      amountCents: transfer.amountCents,
+    });
+
+    return this.summary(user);
+  }
+
   private getHouseholdId(user: AuthenticatedUser): string {
     if (!user.householdId) {
       throw new BadRequestException('User is not part of any household');
@@ -255,7 +333,10 @@ export class ExpensesService {
     }
 
     const found = await this.userModel
-      .exists({ _id: new Types.ObjectId(userId), householdId: new Types.ObjectId(householdId) })
+      .exists({
+        _id: new Types.ObjectId(userId),
+        householdId: new Types.ObjectId(householdId),
+      })
       .exec();
 
     if (!found) {

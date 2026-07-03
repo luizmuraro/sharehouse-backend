@@ -11,7 +11,10 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../schemas/expense.schema';
+import {
+  EXPENSE_CATEGORIES,
+  type ExpenseCategory,
+} from '../schemas/expense.schema';
 
 export class UpdateExpenseDto {
   @IsOptional()
