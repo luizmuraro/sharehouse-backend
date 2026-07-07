@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { HouseholdModule } from './modules/household/household.module';
 import configuration from './config/configuration';
+import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { ShoppingModule } from './modules/shopping/shopping.module';
 import { UsersModule } from './modules/users/users.module';
 import { validateEnv } from './config/env.validation';
@@ -28,6 +29,7 @@ import { validateEnv } from './config/env.validation';
     AuthModule,
     HouseholdModule,
     ExpensesModule,
+    ReceiptsModule,
     ShoppingModule,
     UsersModule,
   ],

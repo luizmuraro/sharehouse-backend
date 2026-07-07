@@ -7,7 +7,9 @@ import { HouseholdService } from './household.service';
 import type { AuthenticatedUser } from '../auth/types';
 
 const user = { id: 'u' } as unknown as AuthenticatedUser;
-const execOf = (value: unknown) => ({ exec: jest.fn().mockResolvedValue(value) });
+const execOf = (value: unknown) => ({
+  exec: jest.fn().mockResolvedValue(value),
+});
 
 const buildService = (overrides: {
   household?: Record<string, unknown>;
@@ -42,14 +44,18 @@ describe('HouseholdService.join', () => {
   it('rejects an invalid invite code with NotFound', async () => {
     const { service } = buildService({
       models: {
-        user: { findById: jest.fn().mockReturnValue(execOf({ _id: 'u', householdId: null })) },
+        user: {
+          findById: jest
+            .fn()
+            .mockReturnValue(execOf({ _id: 'u', householdId: null })),
+        },
         household: { findOne: jest.fn().mockReturnValue(execOf(null)) },
       },
     });
 
-    await expect(service.join(user, { inviteCode: 'ABCDEF' })).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.join(user, { inviteCode: 'ABCDEF' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('enforces the 2-member cap: a full household rejects the join with Conflict', async () => {
@@ -57,7 +63,11 @@ describe('HouseholdService.join', () => {
     // exactly one member (i.e. it is already full).
     const { service } = buildService({
       models: {
-        user: { findById: jest.fn().mockReturnValue(execOf({ _id: 'u', householdId: null })) },
+        user: {
+          findById: jest
+            .fn()
+            .mockReturnValue(execOf({ _id: 'u', householdId: null })),
+        },
         household: {
           findOne: jest.fn().mockReturnValue(execOf({ _id: 'h' })),
           findOneAndUpdate: jest.fn().mockReturnValue(execOf(null)),
@@ -65,9 +75,9 @@ describe('HouseholdService.join', () => {
       },
     });
 
-    await expect(service.join(user, { inviteCode: 'ABCDEF' })).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.join(user, { inviteCode: 'ABCDEF' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });
 
@@ -75,35 +85,56 @@ describe('HouseholdService.leave', () => {
   it('rejects when the user is not in a household', async () => {
     const { service } = buildService({
       models: {
-        user: { findById: jest.fn().mockReturnValue(execOf({ _id: 'u', householdId: null })) },
+        user: {
+          findById: jest
+            .fn()
+            .mockReturnValue(execOf({ _id: 'u', householdId: null })),
+        },
       },
     });
 
-    await expect(service.leave(user)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.leave(user)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('cascade-deletes the household and its data when the last member leaves', async () => {
-    const userDoc = { _id: 'u', householdId: 'h1', save: jest.fn().mockResolvedValue(undefined) };
-    const { service, householdModel, expenseModel, settlementModel, shoppingItemModel } =
-      buildService({
-        models: {
-          user: { findById: jest.fn().mockReturnValue(execOf(userDoc)) },
-          household: {
-            updateOne: jest.fn().mockReturnValue(execOf(undefined)),
-            findById: jest.fn().mockReturnValue(execOf({ members: [] })),
-            deleteOne: jest.fn().mockReturnValue(execOf(undefined)),
-          },
-          expense: { deleteMany: jest.fn().mockReturnValue(execOf(undefined)) },
-          settlement: { deleteMany: jest.fn().mockReturnValue(execOf(undefined)) },
-          shopping: { deleteMany: jest.fn().mockReturnValue(execOf(undefined)) },
+    const userDoc = {
+      _id: 'u',
+      householdId: 'h1',
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    const {
+      service,
+      householdModel,
+      expenseModel,
+      settlementModel,
+      shoppingItemModel,
+    } = buildService({
+      models: {
+        user: { findById: jest.fn().mockReturnValue(execOf(userDoc)) },
+        household: {
+          updateOne: jest.fn().mockReturnValue(execOf(undefined)),
+          findById: jest.fn().mockReturnValue(execOf({ members: [] })),
+          deleteOne: jest.fn().mockReturnValue(execOf(undefined)),
         },
-      });
+        expense: { deleteMany: jest.fn().mockReturnValue(execOf(undefined)) },
+        settlement: {
+          deleteMany: jest.fn().mockReturnValue(execOf(undefined)),
+        },
+        shopping: { deleteMany: jest.fn().mockReturnValue(execOf(undefined)) },
+      },
+    });
 
     await expect(service.leave(user)).resolves.toEqual({ left: true });
     expect(userDoc.householdId).toBeNull();
     expect(householdModel.deleteOne).toHaveBeenCalled();
     expect(expenseModel.deleteMany).toHaveBeenCalledWith({ householdId: 'h1' });
-    expect(settlementModel.deleteMany).toHaveBeenCalledWith({ householdId: 'h1' });
-    expect(shoppingItemModel.deleteMany).toHaveBeenCalledWith({ householdId: 'h1' });
+    expect(settlementModel.deleteMany).toHaveBeenCalledWith({
+      householdId: 'h1',
+    });
+    expect(shoppingItemModel.deleteMany).toHaveBeenCalledWith({
+      householdId: 'h1',
+    });
   });
 });

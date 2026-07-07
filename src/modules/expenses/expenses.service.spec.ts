@@ -5,11 +5,18 @@ import type { AuthenticatedUser } from '../auth/types';
 // doesn't throw (the model calls are mocked, so the value itself is inert).
 const HOUSEHOLD_ID = '507f1f77bcf86cd799439011';
 
-const user = { id: 'a', householdId: HOUSEHOLD_ID } as unknown as AuthenticatedUser;
+const user = {
+  id: 'a',
+  householdId: HOUSEHOLD_ID,
+} as unknown as AuthenticatedUser;
 
 type MemberDoc = { _id: string; name: string };
 type ExpenseDoc = { paidBy: string; amount: number; splitRatio: number };
-type SettlementDoc = { fromUserId: string; toUserId: string; amountCents: number };
+type SettlementDoc = {
+  fromUserId: string;
+  toUserId: string;
+  amountCents: number;
+};
 
 const buildService = (
   members: MemberDoc[],
@@ -78,7 +85,7 @@ describe('ExpensesService.summary balance math', () => {
     });
   });
 
-  it('treats splitRatio as the payer\'s share on custom splits', async () => {
+  it("treats splitRatio as the payer's share on custom splits", async () => {
     // Ana paid and keeps 30%; Bruno owes the remaining 70%.
     const service = buildService(
       [ana, bruno],

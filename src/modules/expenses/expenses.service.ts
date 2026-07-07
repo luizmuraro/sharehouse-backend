@@ -11,10 +11,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { ExpenseQueryDto } from './dto/expense-query.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { Expense, ExpenseDocument } from './schemas/expense.schema';
-import {
-  Settlement,
-  SettlementDocument,
-} from './schemas/settlement.schema';
+import { Settlement, SettlementDocument } from './schemas/settlement.schema';
 
 type ExpenseResponse = {
   id: string;
@@ -303,7 +300,9 @@ export class ExpensesService {
     const { transfer } = currentSummary;
 
     if (!transfer) {
-      throw new BadRequestException('There is no outstanding balance to settle');
+      throw new BadRequestException(
+        'There is no outstanding balance to settle',
+      );
     }
 
     await this.settlementModel.create({
